@@ -12,12 +12,14 @@ class SeqDBSCAN:
         self.next_cid = 0
         
     def region_query(self, p):
-
         neighbors = []
+        p_arr = np.array(p, dtype=float)
         for point in self.points:
-            if np.linalg.norm(np.array(p) - np.array(point)) <= self.eps:
+            point_arr = np.array(point, dtype=float)
+            if np.linalg.norm(p_arr - point_arr) <= self.eps:
                 neighbors.append(point)
         return neighbors
+
     
     def update_clustering(self, p):
 
