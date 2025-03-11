@@ -27,15 +27,15 @@ def extract_features(packet):
         
     return features
 
-def process_pcap(pcap_file, output_csv="data/testdata/features.csv"):
-    packets = rdpcap(pcap_file)
-    feature_list = []
-    for pkt in packets:
-        feat = extract_features(pkt)
-        feature_list.append(feat)
-    df = pd.DataFrame(feature_list)
-    df.to_csv(output_csv, index=False)
-    print(f"Extracted features saved to {output_csv}")
+# def process_pcap(pcap_file, output_csv="data/testdata/features.csv"):
+#     packets = rdpcap(pcap_file)
+#     feature_list = []
+#     for pkt in packets:
+#         feat = extract_features(pkt)
+#         feature_list.append(feat)
+#     df = pd.DataFrame(feature_list)
+#     df.to_csv(output_csv, index=False)
+#     print(f"Extracted features saved to {output_csv}")
 
 if __name__ == "__main__":
     pcap_file = "data/testdata/capture.pcap"

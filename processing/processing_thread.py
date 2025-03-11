@@ -1,8 +1,9 @@
 from threading import Thread, Event
 from queue import Queue
 from anom_detection.preprocessing.feature_extraction import extract_features
-from anom_detection.preprocessing.data_preprocess import preprocess_packet_features
+from anom_detection.preprocessing.data_preprocess import create_df, scaling
 from anom_detection.data_structs.procdata_queue import ProcDataQueue
+import time
 
 class ProcessingPool:
 
@@ -38,6 +39,7 @@ class ProcessingPool:
                             self.idx = 0
                     else:
                         self.workers[self.idx][0].set_enqueue_perms()
+                time.sleep(0.001)
 
             except:
                 self.idx = 0
@@ -82,19 +84,22 @@ class WorkerThread:
                 if self.working_flag == True and self.inputqueue.empty() is False:
                     data = self.inputqueue.get()
                     feature_data = extract_features(data)
-                    preprocessed_data = preprocess_packet_features(feature_data)
+                    preprocessed_data = create_df(feature_data)
 
 
                     while self.outputqueue.is_working() == True:
                         perms = self.outputqueue.ask_perms(self.thread_id)
                         if perms == True:
                             break
+                        time.sleep(0.001)
                     self.outputqueue.put(preprocessed_data)
                     self.outputqueue.release()
                     self.working_flag = False
-
+                else:
+                    time.sleep(0.001)
             except:
                 if self.outputqueue.current_working() == self.thread_id:
                     self.outputqueue.release()
                 self.working_flag = False
+                time.sleep(0.001)
                 continue
