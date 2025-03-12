@@ -4,6 +4,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.animation import FuncAnimation
 from sklearn.decomposition import PCA
 from sklearn.neighbors import KDTree
+from collections import defaultdict
 
 class SeqDBSCAN:
     def __init__(self, eps=0.75, min_samples=3):
@@ -81,7 +82,7 @@ class SeqDBSCAN:
 
     def compute_anomaly_scores(self, k=5, threshold=2.0):
         suspicious_points = []
-        for cluster_id, cluster_points in self.clusters.items():
+        for cluster_id, cluster_points in list(self.clusters.items()):
             if cluster_id < 0:
                 continue
             cluster_list = list(cluster_points)
@@ -93,10 +94,7 @@ class SeqDBSCAN:
             for i, p in enumerate(cluster_array):
                 dists = np.linalg.norm(cluster_array - p, axis=1)
                 sorted_dists = np.sort(dists)
-                if k < n_points:
-                    kth_dist = sorted_dists[k]
-                else:
-                    kth_dist = sorted_dists[-1]
+                kth_dist = sorted_dists[k] if k < n_points else sorted_dists[-1]
                 kth_distances.append(kth_dist)
             cluster_kth_avg = np.mean(kth_distances)
             for i, p in enumerate(cluster_array):
@@ -104,6 +102,7 @@ class SeqDBSCAN:
                 if score > threshold:
                     suspicious_points.append((tuple(p), cluster_id, score))
         return suspicious_points
+
 
     def _gather_cluster_data(self):
         clustered_pts = []
@@ -138,24 +137,33 @@ class SeqDBSCAN:
             noise_2d = np.empty((0, 2))
         return cluster_points_2d, cluster_labels_arr, noise_2d, pca
 
-    def _draw_plot(self, ax, k=5, threshold=2.0):
+    def _draw_plot(self, ax, k=5, threshold=2.0, min_suspicious_points=3):
         cluster_points, cluster_labels, noise_reduced, _ = self._gather_cluster_data()
-        
+
         if cluster_points.size > 0:
             ax.scatter(cluster_points[:, 0], cluster_points[:, 1],
                     c=cluster_labels, cmap='viridis', marker='o', label="Clustered")
+  
         if noise_reduced.size > 0:
             ax.scatter(noise_reduced[:, 0], noise_reduced[:, 1],
                     c='red', marker='x', label="Noise")
         
         suspicious_points = self.compute_anomaly_scores(k=k, threshold=threshold)
-        suspicious_clusters = {cid for (_, cid, _) in suspicious_points}
+        
+        suspicious_map = defaultdict(list)
+        for (pt, cid, score) in suspicious_points:
+            suspicious_map[cid].append(pt)
+
         cluster_coords_map = {}
         for i, lbl in enumerate(cluster_labels):
             cluster_coords_map.setdefault(lbl, []).append(cluster_points[i])
-        for cid in suspicious_clusters:
+
+        for cid, suspicious_pts in suspicious_map.items():
             if cid not in cluster_coords_map:
                 continue
+            if len(suspicious_pts) < min_suspicious_points:
+                continue
+
             coords = np.array(cluster_coords_map[cid])
             x_min, y_min = coords.min(axis=0)
             x_max, y_max = coords.max(axis=0)
@@ -169,7 +177,6 @@ class SeqDBSCAN:
             all_points.append(cluster_points)
         if noise_reduced.size > 0:
             all_points.append(noise_reduced)
-        
         if all_points:
             combined = np.vstack(all_points)
             data_min = combined.min(axis=0)
@@ -183,13 +190,14 @@ class SeqDBSCAN:
             ax.set_xlim(-1, 1)
             ax.set_ylim(-1, 1)
         
-        ax.set_title("DBSCAN Clusters with Anomaly Bounds (Animated)")
+        ax.set_title("DBSCAN Clusters with Anomaly Bounds")
         ax.set_xlabel("Component 1")
         ax.set_ylabel("Component 2")
-        
+
         handles, labels = ax.get_legend_handles_labels()
         if handles:
             ax.legend(handles, labels)
+
 
 
 
